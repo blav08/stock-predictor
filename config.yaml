@@ -1,0 +1,13 @@
+# Project settings (secrets live in .env, not here)
+universe:
+  index: sp500
+  top_n: 50              # phase 1 works with the 50 largest companies
+
+fundamentals:
+  start_year: 2010       # XBRL data is reliable from ~2010 onwards
+
+cache:
+  max_age_days: 7        # re-download SEC JSON older than this
+
+sec:
+  max_requests_per_second: 8   # SEC fair-access limit is 10/s

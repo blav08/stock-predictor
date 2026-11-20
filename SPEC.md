@@ -1,6 +1,6 @@
 # Stock Predictor – Project Specification
 
-> Version 0.3 · 2026-11-20 · status: **design, repo skeleton only, no logic yet**
+> Version 0.4 · 2026-11-20 · status: **phase 1 implemented** (fundamentals + explorer)
 
 ## 1. Goal
 
@@ -100,7 +100,7 @@ Why modules + thin notebooks: better impression in a CV, reusability, testabilit
 
 | Phase | Scope | Done when |
 |---|---|---|
-| 1 | Top 50 of S&P 500, fundamentals + trends + explorer | trend chart for any of the 50 tickers |
+| 1 ✅ | Top 50 of S&P 500, fundamentals + trends + explorer | trend chart for any of the 50 tickers |
 | 2 | Text analysis (free methods) | sentiment + similarity over years |
 | 3 | Monte Carlo DCF with sliders | value histogram + P(undervalued) |
 | 4 | Scale to full S&P 500 (incl. historical constituents) + scoring + backtest | quintile backtest with chart |

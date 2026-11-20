@@ -15,6 +15,7 @@ lxml>=5.2
 
 # Notebook + interactivity
 jupyterlab>=4.2
+nbformat>=5.10          # needed by plotly to render in notebooks
 ipywidgets>=8.1
 plotly>=5.22
 

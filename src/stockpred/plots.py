@@ -112,3 +112,35 @@ def snapshot_table(panel: pd.DataFrame, universe: pd.DataFrame) -> pd.DataFrame:
     out["market_cap"] = out["market_cap"] / 1e9
     return out.rename(columns={"revenue": "revenue_usd_bn", "market_cap": "market_cap_usd_bn"}) \
               .sort_values("market_cap_usd_bn", ascending=False).reset_index(drop=True)
+
+
+# ------------------------------------------------------------------ text features
+SECTION_LABELS = {"risk_factors": "Risk Factors (Item 1A)", "mdna": "MD&A (Item 7)"}
+TEXT_PANELS = [
+    ("net_tone", "Net tone (LM, -1…1)", False),
+    ("lm_uncertainty", "Uncertainty words (%)", True),
+    ("share_new_sentences", "New sentences vs. last year (%)", True),
+    ("n_words", "Length (words)", False),
+]
+
+
+def text_trend_figure(text: pd.DataFrame, ticker: str) -> go.Figure:
+    """Four small charts, one line per 10-K section."""
+    df = text[(text["ticker"] == ticker) & text["extracted"]].sort_values("fiscal_year")
+    fig = make_subplots(rows=2, cols=2, subplot_titles=[t for _, t, _ in TEXT_PANELS],
+                        vertical_spacing=0.18)
+    colors = {"risk_factors": "#c0392b", "mdna": "#2c7fb8"}
+    for i, (col, _, pct) in enumerate(TEXT_PANELS):
+        r, c = i // 2 + 1, i % 2 + 1
+        for section, g in df.groupby("section"):
+            if col not in g:
+                continue
+            y = g[col] * 100 if pct else g[col]
+            fig.add_trace(go.Scatter(x=g["fiscal_year"], y=y, mode="lines+markers",
+                                     name=SECTION_LABELS.get(section, section),
+                                     line=dict(color=colors.get(section)),
+                                     legendgroup=section, showlegend=(i == 0)), row=r, col=c)
+    fig.update_layout(height=600, template="plotly_white",
+                      title=f"{ticker} – 10-K text signals",
+                      legend=dict(orientation="h", y=-0.12))
+    return fig

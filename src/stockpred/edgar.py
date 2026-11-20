@@ -79,6 +79,39 @@ class EdgarClient:
             f"submissions/CIK{cik:010d}.json",
         )
 
+    def all_filings(self, cik: int, since_year: int | None = None) -> list[dict]:
+        """Complete filing history as a list of row dicts.
+
+        The submissions endpoint only contains the most recent ~1000 filings in
+        'recent' (for Apple that is just 2015+, because of many Form 4 insider
+        filings). Older filings live in extra JSON pages listed under 'files'."""
+        sub = self.submissions(cik)
+        pages = [sub["filings"]["recent"]]
+        for extra in sub["filings"].get("files", []):
+            # skip pages that end before the period we care about
+            if since_year and int(extra["filingTo"][:4]) < since_year:
+                continue
+            pages.append(self.get_json(f"{DATA_BASE}/submissions/{extra['name']}",
+                                       f"submissions/{extra['name']}"))
+        rows = []
+        for page in pages:
+            keys = list(page.keys())
+            rows.extend(dict(zip(keys, values)) for values in zip(*page.values()))
+        return rows
+
+    def get_text(self, url: str, retries: int = 3) -> str:
+        """Download a document (e.g. a 10-K HTML) WITHOUT caching - callers cache
+        the extracted result instead, because raw 10-K HTML is large (1-10 MB each)."""
+        for attempt in range(retries):
+            self._throttle()
+            resp = self.session.get(url, timeout=60)
+            if resp.status_code == 429 or resp.status_code >= 500:
+                time.sleep(2 ** attempt)
+                continue
+            resp.raise_for_status()
+            return resp.text
+        raise RuntimeError(f"SEC request failed after {retries} attempts: {url}")
+
     def frame(self, taxonomy: str, tag: str, unit: str, period: str) -> dict:
         """One concept for *all* companies in one period, e.g. shares outstanding CY2026Q3I."""
         return self.get_json(

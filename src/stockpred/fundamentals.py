@@ -10,6 +10,7 @@ Key ideas:
 """
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Literal
 
@@ -196,19 +197,40 @@ def adjust_for_splits(df: pd.DataFrame, splits: pd.Series) -> pd.DataFrame:
     return df
 
 
+def merge_facts(fact_payloads: list[dict]) -> dict:
+    """Combine companyfacts of several CIKs (e.g. a new holding company + its
+    predecessor). Fact lists are simply concatenated - extract_metric() already
+    de-duplicates by period and keeps the earliest filing."""
+    merged: dict = {"facts": {}}
+    for payload in fact_payloads:
+        for taxonomy, tags in payload.get("facts", {}).items():
+            for tag, node in tags.items():
+                target = merged["facts"].setdefault(taxonomy, {}).setdefault(tag, {"units": {}})
+                for unit, entries in node.get("units", {}).items():
+                    target["units"].setdefault(unit, []).extend(entries)
+    return merged
+
+
 def build_panel(
-    client, universe: pd.DataFrame, start_year: int = 2010, splits: dict | None = None
+    client, universe: pd.DataFrame, start_year: int = 2010, splits: dict | None = None,
+    predecessors: dict[int, list[int]] | None = None,
 ) -> pd.DataFrame:
     """Long table for the whole universe: rows = (ticker, fiscal_year).
-    `splits`: optional {ticker: split Series} used to restate per-share data."""
-    frames = []
-    splits = splits or {}
+    `splits`: optional {ticker: split Series} used to restate per-share data.
+    `predecessors`: {cik: [older ciks]} for companies that changed legal entity."""
+    frames, empty = [], []
+    splits, predecessors = splits or {}, predecessors or {}
     for row in universe.itertuples(index=False):
-        facts = client.company_facts(int(row.cik))
+        ciks = [int(row.cik), *predecessors.get(int(row.cik), [])]
+        facts = merge_facts([client.company_facts(c) for c in ciks])
         df = company_fundamentals(facts, start_year)
         if df.empty:
+            empty.append(row.ticker)
             continue
         df = adjust_for_splits(df, splits.get(row.ticker))
         df.insert(0, "ticker", row.ticker)
         frames.append(df.reset_index())
+    if empty:
+        warnings.warn(f"No annual fundamentals found for: {', '.join(empty)} - "
+                      "check the CIK (new legal entity? add it to cik_predecessors)")
     return pd.concat(frames, ignore_index=True)

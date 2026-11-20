@@ -8,6 +8,9 @@ python-dotenv>=1.0
 pyyaml>=6.0
 tqdm>=4.66
 
+# Text analysis (Loughran-McDonald dictionary ships inside pysentiment2, MIT licence)
+pysentiment2>=0.1.1
+
 # Data sources
 yfinance>=0.2.40
 beautifulsoup4>=4.12
@@ -18,6 +21,8 @@ jupyterlab>=4.2
 nbformat>=5.10          # needed by plotly to render in notebooks
 ipywidgets>=8.1
 plotly>=5.22
+matplotlib>=3.8           # pandas Styler.background_gradient
+jinja2>=3.1               # pandas Styler
 
 # Modelling
 scikit-learn>=1.5

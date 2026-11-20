@@ -2,6 +2,10 @@
 universe:
   index: sp500
   top_n: 50              # phase 1 works with the 50 largest companies
+  # Companies that moved to a new legal entity (new SEC CIK) keep their history
+  # under the old CIK. new_cik: [old_cik, ...]
+  cik_predecessors:
+    2115436: [34088]     # ExxonMobil Holdings Corp (2026) <- Exxon Mobil Corp
 
 fundamentals:
   start_year: 2010       # XBRL data is reliable from ~2010 onwards

@@ -22,6 +22,7 @@ class Settings:
     max_age_days: int
     max_requests_per_second: float
     data_dir: Path
+    cik_predecessors: dict[int, list[int]]
 
     @property
     def raw_dir(self) -> Path:
@@ -51,6 +52,8 @@ def load_settings(config_path: Path | None = None) -> Settings:
         max_age_days=int(cfg["cache"]["max_age_days"]),
         max_requests_per_second=float(cfg["sec"]["max_requests_per_second"]),
         data_dir=PROJECT_ROOT / "data",
+        cik_predecessors={int(k): [int(x) for x in v] for k, v in
+                          (cfg["universe"].get("cik_predecessors") or {}).items()},
     )
     settings.raw_dir.mkdir(parents=True, exist_ok=True)
     settings.processed_dir.mkdir(parents=True, exist_ok=True)

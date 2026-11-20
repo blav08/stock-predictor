@@ -1,6 +1,6 @@
 # Stock Predictor – Project Specification
 
-> Version 0.4 · 2026-11-20 · status: **phase 1 implemented** (fundamentals + explorer)
+> Version 0.5 · 2026-11-20 · status: **phases 1–2 implemented** (fundamentals, text analysis, explorer)
 
 ## 1. Goal
 
@@ -36,6 +36,7 @@ Purpose: **personal investing + CV portfolio** → clean repo, README, reproduci
 5. **Text is a weak signal** – year-over-year text change is more informative than tone (Cohen, Malloy, Nguyen: *Lazy Prices*, Journal of Finance 2020).
 6. **Monte Carlo is not a prediction** – the output is only as good as the chosen input distributions.
 7. **`yfinance` is unofficial** – it scrapes Yahoo Finance and may break or rate-limit; cache everything locally.
+8. **Legal entity changes** – a company can get a new CIK (ExxonMobil Holdings Corp, 2026); history stays under the old one → `cik_predecessors` in `config.yaml`.
 
 ## 4. Data strategy
 
@@ -90,7 +91,7 @@ Why modules + thin notebooks: better impression in a CV, reusability, testabilit
 
 1. **Universe** – S&P 500 (current + historical constituents), ticker ↔ CIK mapping, top 50 by market cap.
 2. **Fundamentals** – revenue, EBIT, net income, EPS, FCF, margins, ROIC, debt, share count; normalisation of XBRL tags; YoY growth, CAGR.
-3. **Text** – section extraction (MD&A, Risk Factors), sentiment (Loughran-McDonald dictionary, FinBERT), YoY similarity (TF-IDF cosine, embeddings); optionally LLM extraction (guidance, new risks, strategy changes → JSON).
+3. **Text** ✅ – section extraction (Item 1A Risk Factors, Item 7 MD&A; longest span between headings + title fallback), Loughran-McDonald sentiment, YoY cosine / Jaccard similarity (stop words removed), share of new sentences (fuzzy containment ≥ 80 %), list of new sentences in the explorer. *Later:* FinBERT, embeddings, optional LLM extraction.
 4. **Monte Carlo DCF** – input distributions (revenue growth, margin, reinvestment, WACC, terminal growth) estimated from company history + sliders for manual adjustment; output: intrinsic value histogram, P(value > price), percentiles.
 5. **Scoring + backtest** – composite score (Piotroski F-score, quality, growth, text signals, MC margin of safety), quintile portfolios vs. benchmark, respecting filing dates.
 6. **Portfolio Monte Carlo** – bootstrapped returns of a selected portfolio: VaR, max drawdown, P(loss).
@@ -101,7 +102,7 @@ Why modules + thin notebooks: better impression in a CV, reusability, testabilit
 | Phase | Scope | Done when |
 |---|---|---|
 | 1 ✅ | Top 50 of S&P 500, fundamentals + trends + explorer | trend chart for any of the 50 tickers |
-| 2 | Text analysis (free methods) | sentiment + similarity over years |
+| 2 ✅ | Text analysis (free methods) | sentiment + similarity over years |
 | 3 | Monte Carlo DCF with sliders | value histogram + P(undervalued) |
 | 4 | Scale to full S&P 500 (incl. historical constituents) + scoring + backtest | quintile backtest with chart |
 | 5 | *(optional, paid – postponed)* LLM extraction for top 50; optional ESEF extension | JSON with risks / guidance per year |

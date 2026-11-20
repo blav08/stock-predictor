@@ -180,3 +180,50 @@ def sensitivity_heatmap(grid: pd.DataFrame, price: float) -> go.Figure:
     fig.update_layout(template="plotly_white", height=380, title="Sensitivity: value per share",
                       xaxis_title="WACC", yaxis_title="revenue growth (high-growth phase)")
     return fig
+
+
+# ------------------------------------------------------------------ backtest
+QUINTILE_COLORS = ["#c0392b", "#e67e22", "#95a5a6", "#5dade2", "#1e8449"]
+
+
+def backtest_figure(result, benchmark_label: str = "Equal-weight universe") -> go.Figure:
+    """Growth of 1 USD for each quintile + benchmark, and the long-short line."""
+    from .backtest import cumulative
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.68, 0.32],
+                        subplot_titles=["Quintile portfolios (growth of 1 USD)", "Long-short Q5 − Q1"],
+                        vertical_spacing=0.08)
+    cum = cumulative(result.quintiles)
+    for col, color in zip(cum.columns, QUINTILE_COLORS):
+        fig.add_trace(go.Scatter(x=cum.index, y=cum[col], name=col, line=dict(color=color)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=cum.index, y=cumulative(result.benchmark), name=benchmark_label,
+                             line=dict(color="black", dash="dot")), row=1, col=1)
+    fig.add_trace(go.Scatter(x=cum.index, y=cumulative(result.long_short), name="Q5 − Q1",
+                             line=dict(color="#6c3483"), showlegend=False), row=2, col=1)
+    fig.update_yaxes(type="log", row=1, col=1)
+    fig.update_layout(template="plotly_white", height=620, title=f"Backtest – {result.name}")
+    return fig
+
+
+def quintile_bar_figure(summary: pd.DataFrame) -> go.Figure:
+    """Annualised return per quintile for several factors - a working factor rises left to right."""
+    fig = go.Figure()
+    for i, q in enumerate(["Q1", "Q2", "Q3", "Q4", "Q5"]):
+        fig.add_trace(go.Bar(x=summary.index, y=summary[f"{q}_ann"] * 100, name=q,
+                             marker_color=QUINTILE_COLORS[i]))
+    fig.update_layout(template="plotly_white", barmode="group", height=420,
+                      title="Annualised return by quintile (Q1 = worst score, Q5 = best)",
+                      yaxis_title="% p.a.")
+    return fig
+
+
+def ic_figure(result, window: int = 12) -> go.Figure:
+    """Monthly information coefficient and its rolling mean."""
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=result.ic.index, y=result.ic, name="monthly IC", marker_color="#bbb"))
+    fig.add_trace(go.Scatter(x=result.ic.index, y=result.ic.rolling(window).mean(),
+                             name=f"{window}-month mean", line=dict(color="#2c7fb8", width=2)))
+    fig.add_hline(y=0, line=dict(color="black", width=1))
+    fig.update_layout(template="plotly_white", height=350, title=f"Information coefficient – {result.name}",
+                      yaxis_title="Spearman rank correlation")
+    return fig

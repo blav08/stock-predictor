@@ -5,6 +5,7 @@ Every response is cached, so re-running notebooks does not hit the SEC again.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import time
 from pathlib import Path
@@ -45,10 +46,16 @@ class EdgarClient:
         return path.exists() and (time.time() - path.stat().st_mtime) < self.max_age_seconds
 
     def get_json(self, url: str, cache_name: str, retries: int = 3) -> dict:
-        """GET a JSON document, using the cache when it is fresh enough."""
-        path = self.cache_dir / cache_name
+        """GET a JSON document, using the cache when it is fresh enough.
+
+        Cached as gzip (XBRL JSON compresses ~10x: S&P 500 history is ~3 GB raw,
+        ~300 MB gzipped). Plain .json files from older versions are still read."""
+        path = self.cache_dir / (cache_name + ".gz")
+        legacy = self.cache_dir / cache_name
         if self._is_fresh(path):
-            return json.loads(path.read_text(encoding="utf-8"))
+            return json.loads(gzip.decompress(path.read_bytes()))
+        if self._is_fresh(legacy):
+            return json.loads(legacy.read_text(encoding="utf-8"))
 
         for attempt in range(retries):
             self._throttle()
@@ -60,7 +67,7 @@ class EdgarClient:
             resp.raise_for_status()
             data = resp.json()
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data), encoding="utf-8")
+            path.write_bytes(gzip.compress(json.dumps(data).encode("utf-8"), compresslevel=6))
             return data
         raise RuntimeError(f"SEC request failed after {retries} attempts: {url}")
 
@@ -111,6 +118,11 @@ class EdgarClient:
             resp.raise_for_status()
             return resp.text
         raise RuntimeError(f"SEC request failed after {retries} attempts: {url}")
+
+    def ticker_map(self) -> dict[str, int]:
+        """Current ticker -> CIK for every SEC registrant (Yahoo-style tickers, e.g. BRK-B)."""
+        data = self.get_json("https://www.sec.gov/files/company_tickers.json", "company_tickers.json")
+        return {v["ticker"].upper(): int(v["cik_str"]) for v in data.values()}
 
     def frame(self, taxonomy: str, tag: str, unit: str, period: str) -> dict:
         """One concept for *all* companies in one period, e.g. shares outstanding CY2026Q3I."""

@@ -15,3 +15,37 @@ cache:
 
 sec:
   max_requests_per_second: 8   # SEC fair-access limit is 10/s
+
+backtest:
+  start: "2011-01-31"    # first month end (fundamentals start 2010 + one year for changes)
+  # Historical ticker -> today's ticker. Yahoo keeps the full price history under the new
+  # symbol, so renamed companies stay in the backtest instead of looking "delisted".
+  ticker_renames:
+    FB: META        # 2022
+    ANTM: ELV       # 2022
+    ABC: COR        # 2023
+    PKI: RVTY       # 2023
+    RE: EG          # 2023
+    FLT: CPAY       # 2024
+    BLL: BALL       # 2022
+    HFC: DINO       # 2022
+    NLOK: GEN       # 2022
+    SYMC: GEN       # 2019 Symantec -> NortonLifeLock -> Gen Digital
+    JEC: J          # 2019
+    HRS: LHX        # 2019
+    UTX: RTX        # 2020
+    WLTW: WTW       # 2022
+    KORS: CPRI      # 2018
+    DWDP: DD        # 2019
+    GPS: GAP        # 2024
+    MYL: VTRS       # 2020
+    HCP: DOC        # 2019 HCP -> Healthpeak (PEAK) -> DOC 2024
+    PEAK: DOC       # 2024
+    SQ: XYZ         # 2025
+    FISV: FISV      # 2023 FISV -> FI, back to FISV 2025
+    FI: FISV
+    COG: CTRA       # 2021
+    DISCA: WBD      # 2022
+    CBS: PSKY       # 2019 CBS -> ViacomCBS/Paramount (PARA) -> Paramount Skydance 2025
+    VIAC: PSKY
+    PARA: PSKY

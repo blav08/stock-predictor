@@ -23,6 +23,8 @@ class Settings:
     max_requests_per_second: float
     data_dir: Path
     cik_predecessors: dict[int, list[int]]
+    backtest_start: str
+    ticker_renames: dict[str, str]
 
     @property
     def raw_dir(self) -> Path:
@@ -54,6 +56,9 @@ def load_settings(config_path: Path | None = None) -> Settings:
         data_dir=PROJECT_ROOT / "data",
         cik_predecessors={int(k): [int(x) for x in v] for k, v in
                           (cfg["universe"].get("cik_predecessors") or {}).items()},
+        backtest_start=str(cfg.get("backtest", {}).get("start", "2011-01-31")),
+        ticker_renames={str(k): str(v) for k, v in
+                        (cfg.get("backtest", {}).get("ticker_renames") or {}).items()},
     )
     settings.raw_dir.mkdir(parents=True, exist_ok=True)
     settings.processed_dir.mkdir(parents=True, exist_ok=True)

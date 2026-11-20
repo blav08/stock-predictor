@@ -66,6 +66,8 @@ CONCEPTS: dict[str, Concept] = {
         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
     ), kind="instant"),
     "long_term_debt": Concept(("LongTermDebtNoncurrent", "LongTermDebt"), kind="instant"),
+    "current_assets": Concept(("AssetsCurrent",), kind="instant"),
+    "current_liabilities": Concept(("LiabilitiesCurrent",), kind="instant"),
 }
 
 
@@ -142,16 +144,29 @@ def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
     return (a / b).replace([np.inf, -np.inf], np.nan)
 
 
-def add_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
+def repair_share_counts(df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-check diluted shares against net income / EPS (the definition of EPS).
+
+    * missing share count (ExxonMobil, Visa, Berkshire do not tag it) -> use the implied one
+    * reported count off by > 50 % (McDonald's tags FY2023+ in MILLIONS: 732.3 instead of
+      732,300,000) -> use the implied one
+    Skipped when EPS is tiny (|EPS| < 0.10), where the implied count is unstable."""
+    if not {"net_income", "eps_diluted"} <= set(df.columns):
+        return df
     df = df.copy()
-    # Some companies (ExxonMobil, Visa, Berkshire) do not tag the diluted share count.
-    # EPS = net income / diluted shares, so shares = net income / EPS fills the gap.
-    if {"net_income", "eps_diluted"} <= set(df.columns):
-        implied = _safe_div(df["net_income"], df["eps_diluted"]).where(lambda x: x > 0)
-        if "diluted_shares" not in df:
-            df["diluted_shares"] = np.nan
-        df["diluted_shares_implied"] = df["diluted_shares"].isna() & implied.notna()
-        df["diluted_shares"] = df["diluted_shares"].fillna(implied)
+    usable = df["eps_diluted"].abs() >= 0.10
+    implied = _safe_div(df["net_income"], df["eps_diluted"]).where(lambda x: (x > 0) & usable)
+    if "diluted_shares" not in df:
+        df["diluted_shares"] = np.nan
+    ratio = df["diluted_shares"] / implied
+    wrong = implied.notna() & (df["diluted_shares"].isna() | (ratio < 0.67) | (ratio > 1.5))
+    df["diluted_shares_implied"] = wrong
+    df.loc[wrong, "diluted_shares"] = implied[wrong]
+    return df
+
+
+def add_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    df = repair_share_counts(df)
     cols = df.columns
     if {"operating_cash_flow", "capex"} <= set(cols):
         df["free_cash_flow"] = df["operating_cash_flow"] - df["capex"]
@@ -230,7 +245,12 @@ def build_panel(
     splits, predecessors = splits or {}, predecessors or {}
     for row in universe.itertuples(index=False):
         ciks = [int(row.cik), *predecessors.get(int(row.cik), [])]
-        facts = merge_facts([client.company_facts(c) for c in ciks])
+        try:
+            facts = merge_facts([client.company_facts(c) for c in ciks])
+        except Exception as exc:          # e.g. 404: company never filed XBRL
+            print(f"  ! {row.ticker} (CIK {row.cik}): {exc}")
+            empty.append(row.ticker)
+            continue
         df = company_fundamentals(facts, start_year)
         if df.empty:
             empty.append(row.ticker)
@@ -241,4 +261,4 @@ def build_panel(
     if empty:
         warnings.warn(f"No annual fundamentals found for: {', '.join(empty)} - "
                       "check the CIK (new legal entity? add it to cik_predecessors)")
-    return pd.concat(frames, ignore_index=True)
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()

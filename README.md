@@ -5,7 +5,7 @@ fundamental trends, text analysis (sentiment + year-over-year text changes), Mon
 
 > ⚠️ Educational / personal project. Not investment advice.
 
-**Status:** phases 1–3 done (fundamentals, 10-K text analysis, Monte Carlo DCF, interactive explorer) – see [SPEC.md](SPEC.md) for the roadmap.
+**Status:** phases 1–4 done (fundamentals, 10-K text analysis, Monte Carlo DCF, point-in-time factor backtest, interactive explorer) – see [SPEC.md](SPEC.md) for the roadmap.
 
 ## Getting started (Windows, PowerShell)
 
@@ -25,7 +25,9 @@ Then run the notebooks in order:
 |---|---|---|
 | `notebooks/01_build_dataset.ipynb` | universe → splits → fundamentals → data quality check | ~3–5 min (downloads ~250 MB from SEC, cached afterwards) |
 | `notebooks/02_text_analysis.ipynb` | 10-K Risk Factors + MD&A → sentiment, YoY similarity, new sentences | ~30–60 min (~800 filings, cached afterwards) |
+| `notebooks/03_full_universe.ipynb` | historical S&P 500 members since 2011 → fundamentals, prices, splits, F-score, DCF values for ~600 companies | ~20–30 min (cached afterwards) |
 | `notebooks/04_mc_valuation.ipynb` | Monte Carlo DCF: method walkthrough, interactive sliders, universe screen | seconds |
+| `notebooks/05_scoring_backtest.ipynb` | monthly quintile backtest of 7 factors + composite, robustness, today's ranking | ~1 min |
 | `notebooks/10_explorer.ipynb` | interactive charts: company trends, comparison, text signals + new risks, valuation, snapshot | seconds |
 
 Run tests with `pytest`.
@@ -39,7 +41,23 @@ Run tests with `pytest`.
 - **10-K text** – Item 1A (Risk Factors) and Item 7 (MD&A) extracted from the filing HTML (longest span between headings, so the table of contents is skipped; title-based fallback for cross-reference layouts).
 - **Sentiment** – [Loughran-McDonald](https://sraf.nd.edu/loughranmcdonald-master-dictionary/) finance dictionary (negative, positive, uncertainty, litigious, constraining).
 - **Monte Carlo DCF** – 10,000 paths of a two-stage DCF (high growth → linear fade → Gordon terminal value); random growth, margin, WACC and terminal growth with defaults estimated from the last 5 years; output = value distribution, P(value > price), WACC × growth sensitivity map.
+- **Backtest** – point-in-time S&P 500 membership ([fja05680/sp500](https://github.com/fja05680/sp500)); factors use only data public at each month end (10-K filing date, month-end price, `merge_asof`); monthly equal-weighted quintiles, long-short, IC, sector-neutral composite, sub-period and trading-cost tests.
 - **Text change** – cosine / Jaccard similarity to the previous year (stop words removed) and share of *new sentences* (fuzzy match), inspired by *Lazy Prices* (Cohen, Malloy & Nguyen, 2020).
+
+## Results (first run, Feb 2011 – Oct 2026, ~400 companies per month)
+
+| Factor | Q1 → Q5 p.a. | Long-short p.a. | t-stat |
+|---|---|---|---|
+| Piotroski F-score | 13.7 % → 12.5 % | −1.5 % | −0.8 |
+| Earnings yield | 13.4 % → 11.8 % | −1.5 % | −0.3 |
+| FCF yield | 10.8 % → 13.7 % | +2.5 % | 1.1 |
+| Monte Carlo DCF margin of safety | 9.7 % → 13.1 % | +3.1 % | 1.3 |
+| Momentum 12-1 | 10.9 % → 13.5 % | −0.3 % | 0.3 |
+| Composite (raw) | 11.8 % → 14.5 % | +2.1 % | 1.2 (IC t ≈ 2.0) |
+| Composite (sector-neutral) | 13.1 % → 13.9 % | +0.3 % | 0.3 |
+
+**Takeaway:** no factor is statistically significant in US large caps over this period; the raw composite's edge is a
+sector tilt that vanishes after sector neutralisation and ~10 bps trading costs. The ranking is a research screen, not a strategy.
 
 ## Known limitations
 
@@ -50,11 +68,13 @@ Run tests with `pytest`.
 - Dictionary sentiment ignores context and negation; Risk Factors are mostly boilerplate.
 - **DCF** – not meaningful for banks / insurers (ranked last); FCF margin is depressed during heavy investment phases (switch to *net margin* basis); net cash ignores short-term debt and leases; history-based defaults extrapolate the past (spin-offs such as GE distort growth).
 - Companies that changed legal entity need a manual `cik_predecessors` entry in `config.yaml` (e.g. ExxonMobil 2026).
+- **Backtest survivorship gap** – acquired / bankrupt companies have no free prices: only ~72 % of 2011 member-months are covered (→ ~97 % in 2025). Sectors and "financial" flags come from *today's* GICS data; removed companies get sector "Unknown".
+- Some companies tag XBRL values with the wrong scale (e.g. McDonald's share count in millions) – share counts are cross-checked against net income / EPS.
 - `yfinance` is an unofficial API and may break or rate-limit.
 
 ## Structure
 
-- `src/stockpred/` – core logic: `edgar.py` (SEC client + cache), `universe.py`, `fundamentals.py`, `text.py`, `valuation_mc.py`, `valuation_ui.py`, `prices.py`, `plots.py`
+- `src/stockpred/` – core logic: `edgar.py` (SEC client + cache), `universe.py`, `fundamentals.py`, `text.py`, `valuation_mc.py`, `valuation_ui.py`, `constituents.py`, `factors.py`, `backtest.py`, `prices.py`, `plots.py`
 - `notebooks/` – thin notebooks calling `src/`
 - `tests/` – unit tests on synthetic XBRL data and documents
 - `data/` – local cache (not tracked by git)
@@ -63,4 +83,5 @@ Run tests with `pytest`.
 
 - [SEC EDGAR](https://www.sec.gov/edgar) – fundamentals (XBRL) and 10-K filings
 - [Wikipedia – List of S&P 500 companies](https://en.wikipedia.org/wiki/List_of_S%26P_500_companies)
+- [fja05680/sp500](https://github.com/fja05680/sp500) – historical S&P 500 membership (MIT)
 - [yfinance](https://github.com/ranaroussi/yfinance) – prices, splits, market cap fallback

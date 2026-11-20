@@ -1,0 +1,5 @@
+# Optional, heavy (phase 2 / 5). Install separately:
+#   pip install -r requirements-nlp.txt
+transformers>=4.44
+torch>=2.3
+anthropic>=0.40

@@ -1,0 +1,26 @@
+# Core
+pandas>=2.2
+numpy>=1.26
+scipy>=1.13
+pyarrow>=16
+requests>=2.32
+python-dotenv>=1.0
+pyyaml>=6.0
+tqdm>=4.66
+
+# Data sources
+yfinance>=0.2.40
+beautifulsoup4>=4.12
+lxml>=5.2
+
+# Notebook + interactivity
+jupyterlab>=4.2
+ipywidgets>=8.1
+plotly>=5.22
+
+# Modelling
+scikit-learn>=1.5
+statsmodels>=0.14
+
+# Dev
+pytest>=8.2

@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Environments
+.venv/
+venv/
+
+# Data (re-downloadable, large)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/

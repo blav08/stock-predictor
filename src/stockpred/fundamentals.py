@@ -144,6 +144,14 @@ def _safe_div(a: pd.Series, b: pd.Series) -> pd.Series:
 
 def add_derived_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    # Some companies (ExxonMobil, Visa, Berkshire) do not tag the diluted share count.
+    # EPS = net income / diluted shares, so shares = net income / EPS fills the gap.
+    if {"net_income", "eps_diluted"} <= set(df.columns):
+        implied = _safe_div(df["net_income"], df["eps_diluted"]).where(lambda x: x > 0)
+        if "diluted_shares" not in df:
+            df["diluted_shares"] = np.nan
+        df["diluted_shares_implied"] = df["diluted_shares"].isna() & implied.notna()
+        df["diluted_shares"] = df["diluted_shares"].fillna(implied)
     cols = df.columns
     if {"operating_cash_flow", "capex"} <= set(cols):
         df["free_cash_flow"] = df["operating_cash_flow"] - df["capex"]

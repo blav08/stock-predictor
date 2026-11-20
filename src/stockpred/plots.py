@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -143,4 +145,38 @@ def text_trend_figure(text: pd.DataFrame, ticker: str) -> go.Figure:
     fig.update_layout(height=600, template="plotly_white",
                       title=f"{ticker} – 10-K text signals",
                       legend=dict(orientation="h", y=-0.12))
+    return fig
+
+
+# ------------------------------------------------------------------ Monte Carlo DCF
+def mc_histogram_figure(result, ticker: str) -> go.Figure:
+    """Distribution of intrinsic value per share vs. the current price."""
+    v = result.values
+    lo, hi = np.percentile(v, [1, 99])                 # trim extreme tails for readability
+    p = result.percentiles()
+    fig = go.Figure(go.Histogram(x=v[(v >= lo) & (v <= hi)], nbinsx=80,
+                                 marker_color="#2c7fb8", opacity=0.8, name="simulated value"))
+    fig.add_vline(x=result.price, line=dict(color="#c0392b", width=3),
+                  annotation_text=f"price {result.price:,.0f}", annotation_position="top")
+    for q, dash in [(5, "dot"), (50, "dash"), (95, "dot")]:
+        fig.add_vline(x=p[q], line=dict(color="#555", dash=dash, width=1),
+                      annotation_text=f"P{q} {p[q]:,.0f}", annotation_position="bottom")
+    fig.update_layout(template="plotly_white", height=420, showlegend=False,
+                      title=(f"{ticker} – intrinsic value per share ({len(v):,} paths) · "
+                             f"P(value > price) = {result.prob_undervalued:.0%} · "
+                             f"median vs price {result.margin_of_safety:+.0%}"),
+                      xaxis_title="USD per share", yaxis_title="paths")
+    return fig
+
+
+def sensitivity_heatmap(grid: pd.DataFrame, price: float) -> go.Figure:
+    """Value per share for WACC x growth; colour = upside vs. price (red = overvalued)."""
+    upside = grid / price - 1
+    fig = go.Figure(go.Heatmap(
+        z=upside.values * 100, x=[f"{w:.1%}" for w in grid.columns], y=[f"{g:.0%}" for g in grid.index],
+        text=grid.round(0).values, texttemplate="%{text:,.0f}", colorscale="RdYlGn", zmid=0,
+        colorbar=dict(title="upside %"),
+        hovertemplate="WACC %{x}, growth %{y}<br>value %{text:,.0f}<br>upside %{z:.0f}%<extra></extra>"))
+    fig.update_layout(template="plotly_white", height=380, title="Sensitivity: value per share",
+                      xaxis_title="WACC", yaxis_title="revenue growth (high-growth phase)")
     return fig

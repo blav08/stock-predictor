@@ -1,6 +1,6 @@
 # Stock Predictor – Project Specification
 
-> Version 0.5 · 2026-11-20 · status: **phases 1–2 implemented** (fundamentals, text analysis, explorer)
+> Version 0.6 · 2026-11-20 · status: **phases 1–3 implemented** (fundamentals, text analysis, Monte Carlo DCF, explorer)
 
 ## 1. Goal
 
@@ -92,7 +92,7 @@ Why modules + thin notebooks: better impression in a CV, reusability, testabilit
 1. **Universe** – S&P 500 (current + historical constituents), ticker ↔ CIK mapping, top 50 by market cap.
 2. **Fundamentals** – revenue, EBIT, net income, EPS, FCF, margins, ROIC, debt, share count; normalisation of XBRL tags; YoY growth, CAGR.
 3. **Text** ✅ – section extraction (Item 1A Risk Factors, Item 7 MD&A; longest span between headings + title fallback), Loughran-McDonald sentiment, YoY cosine / Jaccard similarity (stop words removed), share of new sentences (fuzzy containment ≥ 80 %), list of new sentences in the explorer. *Later:* FinBERT, embeddings, optional LLM extraction.
-4. **Monte Carlo DCF** – input distributions (revenue growth, margin, reinvestment, WACC, terminal growth) estimated from company history + sliders for manual adjustment; output: intrinsic value histogram, P(value > price), percentiles.
+4. **Monte Carlo DCF** ✅ – two-stage DCF over 10 years (high growth for N years → linear fade → Gordon terminal value); normal distributions for growth, margin (FCF or net basis), WACC, terminal growth with defaults from the last 5 years (growth capped at 30 %); vectorised NumPy, 10k paths in ~20 ms; fixed seed; sensitivity heatmap; universe screen with financials ranked last. *Later:* reinvestment-based FCF (ROIC), proper net debt incl. leases, sector-specific WACC.
 5. **Scoring + backtest** – composite score (Piotroski F-score, quality, growth, text signals, MC margin of safety), quintile portfolios vs. benchmark, respecting filing dates.
 6. **Portfolio Monte Carlo** – bootstrapped returns of a selected portfolio: VaR, max drawdown, P(loss).
 7. **Explorer** – interactive notebook: pick a ticker → trends, text, MC valuation in one place.
@@ -103,7 +103,7 @@ Why modules + thin notebooks: better impression in a CV, reusability, testabilit
 |---|---|---|
 | 1 ✅ | Top 50 of S&P 500, fundamentals + trends + explorer | trend chart for any of the 50 tickers |
 | 2 ✅ | Text analysis (free methods) | sentiment + similarity over years |
-| 3 | Monte Carlo DCF with sliders | value histogram + P(undervalued) |
+| 3 ✅ | Monte Carlo DCF with sliders | value histogram + P(undervalued) |
 | 4 | Scale to full S&P 500 (incl. historical constituents) + scoring + backtest | quintile backtest with chart |
 | 5 | *(optional, paid – postponed)* LLM extraction for top 50; optional ESEF extension | JSON with risks / guidance per year |
 | 6 | README, screenshots, tests, cleanup → CV | polished public GitHub repo |
